@@ -1,0 +1,191 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CardioCare - ECG Monitoring</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
+<script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://esm.sh/@google/genai@^1.4.0",
+    "firebase/app": "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js",
+    "firebase/database": "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js",
+    "firebase/": "https://esm.sh/firebase@^11.8.1/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div id="role-selection-screen">
+        <h2>Select Your Role</h2>
+        <button id="select-patient-role" class="role-button">I am a Patient</button>
+        <button id="select-doctor-role" class="role-button">I am a Doctor</button>
+    </div>
+
+    <div id="app-container" style="display:none;">
+        <header>
+            <h1>CardioCare ❤️</h1>
+            <button id="switch-role-button" style="display:none;">Switch Role</button>
+        </header>
+        <main>
+            <section id="doctor-login-section" class="section-card" style="display: none;" aria-labelledby="doctor-login-heading">
+                <h2 id="doctor-login-heading">Doctor Portal</h2>
+                <div class="form-group">
+                    <label for="doctor-name-select">Select Your Name:</label>
+                    <select id="doctor-name-select">
+                        <option value="">-- Select Doctor --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="new-doctor-name-input">Or Add Your Name:</label>
+                    <input type="text" id="new-doctor-name-input" placeholder="Enter your full name">
+                    <button id="add-doctor-name-button">Add Name</button>
+                </div>
+                <button id="review-current-session-report-button" disabled>Review Current Session Report</button>
+                <p id="doctor-login-message" role="alert"></p>
+
+                <div id="doctor-report-selection-section" style="display: none; margin-top: 20px;">
+                    <h3>Load Saved Reports</h3>
+                    <div class="form-group">
+                        <label for="report-select-dropdown">Select Report:</label>
+                        <select id="report-select-dropdown">
+                            <option value="">-- Loading reports... --</option>
+                        </select>
+                    </div>
+                    <button id="load-report-button" disabled>Load Selected Report</button>
+                </div>
+                 <p id="firebase-status-message" role="status" aria-live="polite" style="margin-top: 10px;"></p>
+            </section>
+
+            <div id="main-app-content" style="display:none;">
+                <section id="patient-info" class="section-card" aria-labelledby="patient-info-heading">
+                    <h2 id="patient-info-heading" class="sr-only">Patient Information</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="patient-name">Name:</label>
+                            <input type="text" id="patient-name" name="patient-name" required aria-required="true">
+                        </div>
+                        <div class="form-group">
+                            <label for="patient-age">Age:</label>
+                            <input type="number" id="patient-age" name="patient-age" min="0" max="150" required aria-required="true">
+                        </div>
+                        <div class="form-group">
+                            <label for="patient-gender">Gender:</label>
+                            <select id="patient-gender" name="patient-gender" required aria-required="true">
+                                <option value="">Select...</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="controls" aria-labelledby="controls-heading">
+                    <h2 id="controls-heading" class="sr-only">Device Controls</h2>
+                    <button id="connect-button" aria-label="Connect to Arduino device and start recording" disabled>Connect to Arduino</button>
+                    <button id="demo-button" aria-label="Start demo mode and record" disabled>Start Demo</button>
+                    <div id="status-indicator" role="status" aria-live="polite">
+                        Status: <span id="connection-status">Enter Patient Info</span>
+                        <br>
+                        <span id="relay-status" style="font-size: 0.9em;"></span>
+                        <br>
+                        <span id="timer-status" style="font-size: 0.9em;"></span>
+                    </div>
+                </section>
+
+                <div class="chart-container-wrapper">
+                    <section id="ecg-chart-container" aria-labelledby="ecgChartGlobalTitle">
+                        <h3 id="ecgChartGlobalTitle" class="chart-section-title">Live ECG</h3>
+                        <svg id="ecg-chart" width="100%" height="300px" aria-label="Live ECG chart displaying real-time waveform on a standard grid. Vertical axis shows signal amplitude in millivolts (mV), horizontal axis shows a 2.5-second time window.">
+                            <defs id="ecg-chart-defs">
+                            </defs>
+                            <rect id="ecg-grid-rect" x="0" y="0" width="100%" height="100%" fill="url(#ecg-live-grid-pattern)" />
+                            <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" class="chart-placeholder">Enter patient info, then connect to device or start demo to see ECG</text>
+                            <polyline id="ecg-waveform" fill="none" stroke-width="1.25"/>
+                            <g id="ecg-axis-labels"></g>
+                            <g id="ecg-chart-titles"></g>
+                        </svg>
+                    </section>
+                </div>
+
+                <div class="chart-container-wrapper">
+                    <section id="hr-chart-container" aria-labelledby="hrChartGlobalTitle">
+                        <h3 id="hrChartGlobalTitle" class="chart-section-title">Heart Rate (BPM): <span id="hr-value">-</span></h3>
+                        <svg id="hr-chart" width="100%" height="180px" aria-label="Live Heart Rate chart displaying BPM trend over 15 seconds. Vertical axis dynamically scales. Horizontal axis shows time in seconds (0-15s). Dots mark 2.5s intervals.">
+                            <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" class="hr-chart-placeholder">Enter patient info, then start recording for BPM</text>
+                            <g id="hr-grid-lines"></g>
+                            <polyline id="hr-waveform" fill="none" stroke-width="2"/>
+                            <g id="hr-dot-markers-live"></g>
+                            <g id="hr-axis-labels"></g>
+                            <g id="hr-chart-titles"></g>
+                        </svg>
+                    </section>
+                </div>
+
+                <section id="report-section" class="section-card" aria-labelledby="report-heading" style="display: none;">
+                    <h2 id="report-heading">ECG Report</h2>
+                    <div id="report-content" role="document" aria-label="ECG Report Content">
+                        <h3>Patient Details</h3>
+                        <p><strong>Name:</strong> <span id="report-patient-name"></span></p>
+                        <p><strong>Age:</strong> <span id="report-patient-age"></span></p>
+                        <p><strong>Gender:</strong> <span id="report-patient-gender"></span></p>
+                        <p><strong>Date & Time:</strong> <span id="report-datetime"></span></p>
+                        <p style="font-size:0.8em; color: #666;">Report ID: <span id="report-id-display">N/A</span></p>
+
+                        <h3>Heart Rate Analysis (15s)</h3>
+                        <div id="report-hr-chart-container" class="chart-container-wrapper">
+                            <svg id="report-hr-chart" width="100%" height="200px" aria-label="Heart Rate trend chart over the 15-second recording. Vertical axis shows BPM, horizontal axis shows time in seconds. Dots mark 2.5s intervals.">
+                                 <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" class="report-hr-chart-placeholder">HR data will appear here.</text>
+                                 <g id="report-hr-grid-lines"></g>
+                                 <polyline id="report-hr-waveform" fill="none" stroke-width="1.5"/>
+                                 <g id="report-hr-dot-markers"></g>
+                                 <g id="report-hr-axis-labels"></g>
+                                 <g id="report-hr-chart-titles"></g>
+                            </svg>
+                        </div>
+                        <p><strong>Average Heart Rate:</strong> <span id="report-avg-hr-value">-</span> BPM</p>
+                        <p><strong>Minimum Heart Rate:</strong> <span id="report-min-hr-value">-</span> BPM</p>
+                        <p><strong>Maximum Heart Rate:</strong> <span id="report-max-hr-value">-</span> BPM</p>
+
+                        <h3>ECG Waveform (15s Snapshot)</h3>
+                        <div id="report-ecg-snapshot-container" class="chart-container-wrapper">
+                            <svg id="report-ecg-snapshot" width="100%" height="250px" aria-label="Snapshot of the recorded ECG waveform over 15 seconds on a standard grid. Vertical axis shows signal amplitude in millivolts (mV), horizontal axis shows time in seconds (0-15s). Average heart rate for the recording is displayed.">
+                               <defs id="report-ecg-snapshot-defs">
+                               </defs>
+                               <rect id="report-grid-rect" x="0" y="0" width="100%" height="100%" fill="url(#ecg-report-grid-pattern)" />
+                               <text id="report-snapshot-hr-text" x="98%" y="25" text-anchor="end" class="report-hr-text-svg">Avg. HR: - BPM</text>
+                               <g id="report-axis-labels"></g>
+                               <g id="report-chart-titles"></g>
+                            </svg>
+                        </div>
+
+                        <h3>Doctor's Remarks</h3>
+                        <div id="remarks-input-container" style="display:none;">
+                            <textarea id="doctor-remarks-input" rows="4" aria-label="Enter doctor's remarks here" placeholder="Enter remarks..."></textarea>
+                            <button id="save-remarks-button" aria-label="Save remarks">Save Remarks</button>
+                        </div>
+                        <p id="doctor-remarks-display" style="display: none;" aria-live="polite"></p>
+                        <p id="waiting-for-remarks-message" style="display:none;">Waiting for Doctor's Remarks...</p>
+
+
+                        <p class="disclaimer"><strong>Disclaimer:</strong> This tool provides data for informational purposes only and is NOT a substitute for professional medical diagnosis or advice. Consult a qualified healthcare professional for any medical concerns.</p>
+                    </div>
+                    <button id="download-pdf-button" aria-label="Download ECG report as PDF" disabled>Download PDF Report</button>
+                </section>
+            </div>
+        </main>
+        <footer>
+            <p>&copy; 2024 CardioCare. For demonstration purposes only.</p>
+        </footer>
+    </div>
+    <script type="module" src="index.js"></script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f0f2f5;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    line-height: 1.6;
+    -webkit-tap-highlight-color: transparent; /* Disable tap highlight on mobile */
+
+}
+
+#app-container {
+    width: 100%; /* Full width on mobile */
+    max-width: 1000px; /* Max width for larger screens if viewed there */
+    margin: 0 auto; /* Centering for larger screens */
+    background-color: #ffffff;
+    padding: 15px;
+    box-sizing: border-box;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+header h1 {
+    color: #0056b3;
+    margin: 0;
+    font-size: 1.5em;
+}
+
+#connection-info {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #e9ecef;
+    border-radius: 6px;
+    font-size: 0.9em;
+}
+#connection-info label {
+    display: block;
+    margin-bottom: 5px;
+}
+#connection-info input[type="text"] {
+    width: calc(100% - 22px); /* Full width minus padding and border */
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+#connection-info button {
+    padding: 8px 15px;
+    font-size: 1em;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    display: block; /* Make button take full width */
+    width: 100%;
+    margin-bottom: 5px;
+}
+#connection-info button:hover {
+    background-color: #0056b3;
+}
+
+
+#ecg-chart-container-mobile {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background-color: #f8f9fa;
+    overflow: hidden;
+}
+
+#ecg-chart-mobile {
+    display: block;
+    background-color: #ffffff;
+    width: 100%; /* Ensure SVG takes full width of its container */
+}
+
+.chart-placeholder-mobile {
+    font-size: 16px;
+    fill: #6c757d;
+}
+
+#ecg-waveform-mobile {
+    stroke: #009688;
+    stroke-width: 2px;
+}
+
+footer {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 10px;
+    border-top: 1px solid #e0e0e0;
+    font-size: 0.8em;
+    color: #6c757d;
+}
+
+/* Prevent zooming on input focus for better mobile UX */
+input[type="text"], input[type="button"], button {
+    font-size: 16px; /* iOS zooms if font size < 16px */
+}
+
+@media (max-width: 480px) {
+    header h1 {
+        font-size: 1.3em;
+    }
+    .chart-placeholder-mobile {
+        font-size: 14px;
+    }
+     #ecg-chart-mobile {
+        height: 220px; /* Adjust height for smaller phone screens */
+    }
+}
+

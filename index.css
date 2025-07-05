@@ -1,0 +1,525 @@
+html {
+    background-color: #F8F9FA; /* Very light grey page background */
+    height: 100%;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #F8F9FA; /* Very light grey page background */
+    color: #343A40; /* Darker grey for primary text */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* Align content to the top */
+    align-items: center;
+    min-height: 100vh;
+    line-height: 1.6;
+    box-sizing: border-box;
+}
+
+#role-selection-screen {
+    text-align: center;
+    padding: 30px 40px;
+    background-color: #FFFFFF; /* White card background */
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+    margin-bottom: 30px;
+    max-width: 500px;
+    width: 100%;
+}
+
+#role-selection-screen h2 {
+    color: #007BFF; /* Primary Blue */
+    margin-bottom: 25px;
+    font-size: 1.8em;
+    font-weight: 600;
+}
+
+.role-button {
+    padding: 14px 30px;
+    font-size: 18px;
+    color: #FFFFFF;
+    background-color: #007BFF; /* Primary Blue */
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    margin: 10px;
+    min-width: 200px;
+    font-weight: 500;
+}
+
+.role-button:hover {
+    background-color: #0056b3; /* Darker Primary Blue */
+    transform: translateY(-2px);
+}
+.role-button:active {
+    transform: translateY(0px);
+}
+
+
+#app-container {
+    width: 95%;
+    max-width: 1100px;
+    background-color: #FFFFFF; /* White card background */
+    padding: 25px 30px;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+header {
+    text-align: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #DEE2E6; /* Light grey border */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header h1 {
+    color: #007BFF; /* Primary Blue */
+    margin: 0;
+    flex-grow: 1;
+    text-align: center;
+    font-size: 2em;
+    font-weight: 600;
+}
+header #switch-role-button {
+    padding: 10px 18px;
+    font-size: 15px;
+    background-color: #6C757D; /* Grey for secondary actions */
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+header #switch-role-button:hover {
+    background-color: #5A6268; /* Darker Grey */
+}
+
+
+/* Accessibility helper */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* Section Styling */
+.section-card {
+    padding: 20px;
+    background-color: #FFFFFF;
+    border: 1px solid #E9ECEF; /* Lighter border for inner cards */
+    border-radius: 8px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+.section-card h2, .section-card h3 {
+    color: #007BFF; /* Primary Blue */
+    margin-top: 0;
+    margin-bottom: 18px;
+    font-weight: 600;
+}
+
+
+#doctor-login-section {
+    /* uses .section-card styling */
+}
+#doctor-login-section .form-group {
+    margin-bottom: 18px;
+}
+#doctor-login-section label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #495057; /* Medium Grey Text */
+}
+#doctor-login-section select,
+#doctor-login-section input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #CED4DA; /* Standard border */
+    border-radius: 6px;
+    font-size: 16px;
+    box-sizing: border-box;
+    margin-bottom: 5px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+#doctor-login-section select:focus,
+#doctor-login-section input[type="text"]:focus {
+    border-color: #007BFF; /* Primary Blue */
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); /* Blue focus ring */
+    outline: none;
+}
+
+#doctor-login-section button { /* General button style within this section */
+    padding: 12px 20px;
+    font-size: 16px;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-weight: 500;
+}
+
+#doctor-login-section #add-doctor-name-button,
+#doctor-login-section #review-current-session-report-button,
+#doctor-login-section #load-report-button {
+    background-color: #007BFF; /* Primary Blue */
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+}
+#doctor-login-section #add-doctor-name-button:hover,
+#doctor-login-section #review-current-session-report-button:hover:not(:disabled),
+#doctor-login-section #load-report-button:hover:not(:disabled) {
+    background-color: #0056b3; /* Darker Primary Blue */
+}
+#doctor-login-section #review-current-session-report-button:disabled,
+#doctor-login-section #load-report-button:disabled {
+    background-color: #A9CFFF; /* Lighter, desaturated blue for disabled */
+    cursor: not-allowed;
+}
+#doctor-login-message {
+    margin-top: 12px;
+    font-weight: 500;
+    color: #dc3545; /* Error Red */
+}
+
+#doctor-report-selection-section {
+    padding: 15px;
+    background-color: #F8F9FA; /* Very light grey, slightly different from card */
+    border: 1px solid #DEE2E6; /* Border color */
+    border-radius: 6px;
+    margin-top:20px;
+}
+
+#firebase-status-message {
+    font-size: 0.9em;
+    padding: 10px;
+    border-radius: 6px;
+    text-align: center;
+    margin-top: 15px;
+    font-weight: 500;
+}
+.firebase-status-info { background-color: #e7f3fe; border-left: 5px solid #007BFF; color: #004085; }
+.firebase-status-success { background-color: #d4edda; border-left: 5px solid #28a745; color: #155724; }
+.firebase-status-error { background-color: #f8d7da; border-left: 5px solid #dc3545; color: #721c24; }
+
+
+#patient-info {
+    /* uses .section-card styling */
+}
+
+#patient-info .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 18px;
+}
+
+#patient-info .form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+#patient-info label {
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #495057;
+}
+
+#patient-info input[type="text"],
+#patient-info input[type="number"],
+#patient-info select {
+    padding: 10px 12px;
+    border: 1px solid #CED4DA;
+    border-radius: 6px;
+    font-size: 16px;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#patient-info input:focus, #patient-info select:focus {
+    border-color: #007BFF;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    outline: none;
+}
+
+
+#controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: center;
+    margin-bottom: 25px;
+    padding: 15px;
+    background-color: #F8F9FA; /* Light background for control bar */
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+#controls button {
+    padding: 12px 22px;
+    font-size: 16px;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, opacity 0.2s ease, transform 0.1s ease;
+    margin-right: 12px;
+    margin-bottom: 10px; /* For wrapping */
+    font-weight: 500;
+}
+#controls button:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+#controls button:active:not(:disabled) {
+    transform: translateY(0px);
+}
+
+
+#connect-button,
+#demo-button {
+    background-color: #007BFF; /* Primary Blue */
+}
+
+#connect-button:hover:not(:disabled),
+#demo-button:hover:not(:disabled) {
+    background-color: #0056b3; /* Darker Primary Blue */
+}
+
+
+#controls button:disabled {
+    background-color: #A9CFFF; /* Lighter, desaturated blue for disabled */
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
+#status-indicator {
+    font-size: 15px;
+    font-weight: 500;
+    margin-left: auto;
+    text-align: right;
+    padding-left: 15px;
+    color: #495057;
+}
+
+/* Functional status colors */
+#connection-status.connected { color: #28a745; font-weight: 600; }
+#connection-status.demomode { color: #17A2B8; font-weight: 600; } /* Info Blue */
+#connection-status.disconnected { color: #6C757D; }
+#connection-status.recording { color: #FFC107; font-weight: 600; } /* Warning Yellow */
+#connection-status.connecting { color: #fd7e14; font-weight: 600; } /* Orange for connecting */
+#connection-status.error { color: #dc3545; font-weight: 600; }
+
+#timer-status { color: #007BFF; font-weight: bold; }
+#relay-status { font-weight: normal; font-size: 0.9em; }
+#relay-status.success { color: #28a745; }
+#relay-status.error { color: #dc3545; }
+#relay-status.info { color: #17A2B8; }
+
+
+.chart-section-title {
+    text-align: center;
+    font-size: 1.3em;
+    color: #007BFF; /* Primary Blue */
+    margin: 15px 0 10px 0;
+    font-weight: 600;
+}
+
+.chart-container-wrapper { /* New wrapper for chart sections */
+    border: 1px solid #DEE2E6; /* Light grey border */
+    border-radius: 8px;
+    background-color: #FFFFFF; /* White background for chart area */
+    overflow: hidden;
+    margin-bottom: 25px;
+    padding: 15px; /* Padding around the SVG */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+#ecg-chart,
+#report-ecg-snapshot {
+    display: block;
+    /* Background color for ECG charts will be effectively determined by the grid pattern */
+    border-radius: 4px; /* Slight rounding for the SVG itself if needed */
+}
+
+#hr-chart,
+#report-hr-chart {
+    display: block;
+    background-color: #FFFFFF; /* Chart drawing area white for HR charts */
+    border-radius: 4px;
+}
+
+
+.chart-placeholder, /* For ECG charts */
+.hr-chart-placeholder, /* For HR charts */
+.report-hr-chart-placeholder {
+    font-size: 18px;
+    fill: #007BFF; /* Primary Blue for placeholder text on non-ECG charts */
+    font-weight: 500;
+    opacity: 0.8;
+}
+/* ECG specific placeholder if needed differently */
+#ecg-chart .chart-placeholder,
+#report-ecg-snapshot .chart-placeholder { /* If a specific placeholder is added to report ECG */
+    fill: #555555; /* Darker grey for placeholder on ECG grid */
+}
+
+
+#ecg-waveform,
+#report-ecg-waveform-actual {
+    stroke: #000000; /* Standard ECG: Black waveform */
+    stroke-width: 1.5px;
+    fill: none;
+}
+
+#hr-value { font-weight: bold; color: #007BFF; } /* Primary action blue */
+#hr-waveform, #report-hr-waveform { stroke: #007BFF; stroke-width: 1.8px; fill: none; } /* Primary action blue */
+.hr-dot-marker { fill: #007BFF; stroke: #0056b3; stroke-width: 0.5px; } /* Primary blue for dots */
+
+
+.chart-title-svg { font-size: 14px; font-weight: 600; fill: #343A40; text-anchor: middle; }
+.axis-label-svg { font-size: 12px; fill: #495057; text-anchor: middle; }
+.axis-tick-label-svg { font-size: 10px; fill: #6C757D; } /* Medium grey for ticks */
+.grid-line-svg { stroke: #E9ECEF; stroke-width: 1px; stroke-dasharray: 3,3; } /* Lighter grey for HR grid */
+
+
+#report-section {
+     /* uses .section-card styling */
+}
+#report-section h2 { border-bottom: 1px solid #DEE2E6; padding-bottom: 10px; }
+#report-section h3 { margin-top: 25px; margin-bottom: 12px; }
+#report-content p { margin-bottom: 10px; line-height: 1.6; color: #495057; }
+#report-content strong { color: #212529; font-weight: 600; }
+
+#report-ecg-snapshot-container,
+#report-hr-chart-container {
+    /* uses .chart-container-wrapper styling */
+}
+
+.report-hr-text-svg { font-size: 12px; font-weight: 600; fill: #343A40; text-anchor: end; }
+
+
+#remarks-input-container { margin-bottom: 12px; }
+#doctor-remarks-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #CED4DA;
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 15px;
+    margin-bottom: 12px;
+    min-height: 90px;
+    background-color: #FFFFFF;
+    color: #343A40;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+#doctor-remarks-input:focus {
+    border-color: #007BFF;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    outline: none;
+}
+
+
+#save-remarks-button {
+    padding: 10px 18px;
+    font-size: 15px;
+    background-color: #28A745; /* Green for save/confirm */
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+#save-remarks-button:hover { background-color: #1E7E34; } /* Darker Green */
+
+#doctor-remarks-display,
+#waiting-for-remarks-message {
+    padding: 12px 15px;
+    background-color: #E9ECEF; /* Light grey background for display */
+    border: 1px solid #DEE2E6;
+    border-radius: 6px;
+    min-height: 40px;
+    white-space: pre-wrap;
+    margin-top: 8px;
+    line-height: 1.6;
+    color: #343A40;
+}
+#waiting-for-remarks-message {
+    font-style: italic;
+    color: #6C757D;
+}
+
+
+.disclaimer { font-size: 0.9em; color: #6C757D; font-style: italic; margin-top: 20px; padding-top: 15px; border-top: 1px dashed #DEE2E6; }
+
+#download-pdf-button {
+    display: block;
+    width: auto;
+    margin: 25px auto 0 auto;
+    padding: 14px 30px;
+    font-size: 17px;
+    color: #FFFFFF;
+    background-color: #007BFF; /* Primary Blue */
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+#download-pdf-button:hover:not(:disabled) {
+    background-color: #0056b3; /* Darker Primary Blue */
+    transform: translateY(-2px);
+}
+#download-pdf-button:disabled {
+    background-color: #A9CFFF; /* Lighter, desaturated blue for disabled */
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
+
+footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #DEE2E6; font-size: 0.9em; color: #6C757D; }
+
+@media (max-width: 768px) {
+    body { padding: 10px; }
+    #app-container { width: 100%; padding: 15px; }
+    .role-button { display: block; width: 100%; margin: 10px 0; }
+    #patient-info .form-grid { grid-template-columns: 1fr; }
+    #controls { flex-direction: column; align-items: stretch; }
+    #controls button { width: 100%; margin-right: 0; }
+    #status-indicator { width: 100%; text-align: center; margin-left: 0; margin-top: 15px; padding-left: 0; }
+
+    #ecg-chart { height: 250px; }
+    #hr-chart { height: 180px; }
+    #report-hr-chart { height: 180px; }
+    #report-ecg-snapshot { height: 220px; }
+
+    .chart-section-title { font-size: 1.15em; }
+    .chart-title-svg { font-size: 13px; }
+    .axis-label-svg { font-size: 11px; }
+    .axis-tick-label-svg { font-size: 9px; }
+    .report-hr-text-svg { font-size: 11px; }
+    header h1 { font-size: 1.5em; }
+    #download-pdf-button { padding: 12px 25px; font-size: 16px; }
+}
+@media (max-width: 480px) {
+    header h1 { font-size: 1.3em; }
+    .role-button { padding: 12px 20px; font-size: 16px; }
+    #role-selection-screen h2 { font-size: 1.5em; }
+
+    #ecg-chart { height: 220px; }
+    #hr-chart { height: 160px; }
+}

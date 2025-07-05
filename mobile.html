@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Mobile ECG Viewer</title>
+    <link rel="stylesheet" href="mobile.css">
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+</head>
+<body>
+    <div id="app-container">
+        <header>
+            <h1>ECG Live View (Mobile)</h1>
+        </header>
+        <main>
+            <section id="connection-info">
+                <label for="server-ip">Server IP (Desktop):</label>
+                <input type="text" id="server-ip" placeholder="Enter desktop IP or leave for auto">
+                <button id="connect-ws-button">Connect</button>
+                <p>Status: <span id="ws-status">Disconnected</span></p>
+            </section>
+            <section id="ecg-chart-container-mobile" aria-label="ECG Waveform Display">
+                <svg id="ecg-chart-mobile" width="100%" height="300px">
+                     <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" class="chart-placeholder-mobile">Waiting for data...</text>
+                    <polyline id="ecg-waveform-mobile" fill="none" stroke="green" stroke-width="2"/>
+                </svg>
+            </section>
+        </main>
+        <footer>
+            <p>Viewing data relayed from desktop.</p>
+        </footer>
+    </div>
+    <script src="mobile.js"></script>
+</body>
+</html>

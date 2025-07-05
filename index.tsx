@@ -157,7 +157,7 @@ const HR_DOT_INTERVAL_MS = 2500;
 const chartMargins = { top: 40, right: 20, bottom: 50, left: 60 };
 
 let port: SerialPort | null = null;
-let reader: ReadableStreamDefaultReader<string> | null = null;
+let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 let keepReading = false;
 let recordingInterval: number | null = null;
 let demoInterval: number | null = null;
@@ -460,11 +460,13 @@ function createEcgGridPattern(id: string, pixelsPerMmX: number, pixelsPerMmY: nu
         pattern.appendChild(yLine);
     }
     const majorXLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    majorXLine.setAttribute("x1", "0"); majorXLine.setAttribute("y1", "0"); majorXLine.setAttribute("x2", "0"); majorXLine.setAttribute("y2", (pixelsPerMmY * 5).toString());
+    majorXLine.setAttribute("x1", "0"); majorXLine.setAttribute("y1", "0");
+    majorXLine.setAttribute("x2", "0"); majorXLine.setAttribute("y2", (pixelsPerMmY * 5).toString());
     majorXLine.setAttribute("stroke", ECG_MAJOR_GRID_COLOR); majorXLine.setAttribute("stroke-width", "1");
     pattern.appendChild(majorXLine);
     const majorYLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    majorYLine.setAttribute("x1", "0"); majorYLine.setAttribute("y1", "0"); majorYLine.setAttribute("x2", (pixelsPerMmX * 5).toString()); majorYLine.setAttribute("y2", "0");
+    majorYLine.setAttribute("x1", "0"); majorYLine.setAttribute("y1", "0");
+    majorYLine.setAttribute("x2", (pixelsPerMmX * 5).toString()); majorYLine.setAttribute("y2", "0");
     majorYLine.setAttribute("stroke", ECG_MAJOR_GRID_COLOR); majorYLine.setAttribute("stroke-width", "1");
     pattern.appendChild(majorYLine);
     defsElement.appendChild(pattern);
@@ -800,64 +802,68 @@ async function connectAndRead() {
             if (!dataReceived && keepReading) {
                 updateConnectionStatus('No data from device. Check wiring.', 'error');
             }
-        }, 3500); // 3.5 second grace period to receive first byte
+        }, 3500);
 
-        const textDecoder = new TextDecoderStream();
-        const readableStreamClosed = port.readable?.pipeTo(textDecoder.writable);
-        reader = textDecoder.readable.getReader();
+        // This replaces the old TextDecoderStream implementation for more robustness
+        if (!port.readable) throw new Error("Serial port is not readable.");
+        reader = port.readable.getReader();
+        const decoder = new TextDecoder();
         let lineBuffer = '';
 
         while (port.readable && keepReading) {
             const { value, done } = await reader.read();
 
-            if (value && !dataReceived) {
-                dataReceived = true;
-                clearTimeout(dataReceptionTimeout);
-            }
-
             if (done) {
-                clearTimeout(dataReceptionTimeout);
-                break;
+                break; // Exit loop if stream is closed
             }
 
-            lineBuffer += value;
-            const lines = lineBuffer.split('\n'); // Correctly split by newline
-            lineBuffer = lines.pop() || '';
-
-            lines.forEach(line => {
-                const trimmedLine = line.trim();
-                if (trimmedLine === 'LEADS_OFF') {
-                    handleLeadsOffState();
-                    sendDataToServer('LEADS_OFF');
-                } else if (trimmedLine) {
-                    const numericValue = parseInt(trimmedLine, 10);
-                    if (!isNaN(numericValue)) {
-                        // If status was in an error state (Leads Off, No Data), update to Recording
-                        if (connectionStatusSpan?.className.includes('error')) {
-                            updateConnectionStatus('Recording...', 'recording');
-                        }
-                        if (chartPlaceholderText && chartPlaceholderText.style.display !== 'none') {
-                            chartPlaceholderText.style.display = 'none';
-                        }
-                        processAndDrawLiveData(numericValue);
-                        if (recordedDataForReportInternal.length < (RECORDING_DURATION_MS / DATA_READ_INTERVAL_MS)) {
-                            recordedDataForReportInternal.push(numericValue);
-                        }
-                        sendDataToServer(numericValue);
-                    }
+            if (value) {
+                if (!dataReceived) {
+                    dataReceived = true;
+                    clearTimeout(dataReceptionTimeout);
                 }
-            });
+                
+                // If status was in an error state (Leads Off, No Data), update to Recording
+                if (connectionStatusSpan?.className.includes('error')) {
+                    updateConnectionStatus('Recording...', 'recording');
+                }
+                if (chartPlaceholderText && chartPlaceholderText.style.display !== 'none') {
+                    chartPlaceholderText.style.display = 'none';
+                }
+
+                lineBuffer += decoder.decode(value, { stream: true });
+                const lines = lineBuffer.split('\n');
+                lineBuffer = lines.pop() || ''; // Keep partial line for next chunk
+
+                lines.forEach(line => {
+                    const trimmedLine = line.trim();
+                    if (trimmedLine === 'LEADS_OFF') {
+                        handleLeadsOffState();
+                        sendDataToServer('LEADS_OFF');
+                    } else if (trimmedLine) {
+                        const numericValue = parseInt(trimmedLine, 10);
+                        if (!isNaN(numericValue)) {
+                            processAndDrawLiveData(numericValue);
+                            if (recordedDataForReportInternal.length < (RECORDING_DURATION_MS / DATA_READ_INTERVAL_MS)) {
+                                recordedDataForReportInternal.push(numericValue);
+                            }
+                            sendDataToServer(numericValue);
+                        }
+                    }
+                });
+            }
         }
-        if (reader) { await reader.cancel(); reader.releaseLock(); }
-        if (readableStreamClosed) await readableStreamClosed.catch(() => { /* Ignore abort errors */ });
     } catch (error) {
         console.error('Error with Web Serial:', error);
         updateConnectionStatus(`Error: ${(error as Error).message.split('.')[0]}`, 'error');
         isDeviceConnected = false;
-        resetAndClearCharts();
+        resetAndClearCharts(); // Reset on connection failure
     } finally {
-        if (port && port.readable && !keepReading && reader) {
-            try { await reader.cancel(); reader.releaseLock(); } catch (e) { /* Ignore */ }
+        // When the loop finishes (e.g., keepReading is false), release the reader lock.
+        // This is critical so the port can be closed later in endRecordingSession.
+        if (reader) {
+            reader.releaseLock();
+            reader = null;
         }
     }
 }
@@ -913,34 +919,30 @@ function startRecordingSession() {
 }
 
 async function endRecordingSession() {
-    keepReading = false;
-    if (countdownTimer) clearInterval(countdownTimer); if (recordingInterval) clearTimeout(recordingInterval);
+    keepReading = false; // This signals the read loop in connectAndRead to stop.
+    if (countdownTimer) clearInterval(countdownTimer);
+    if (recordingInterval) clearTimeout(recordingInterval);
     if (demoInterval) clearInterval(demoInterval);
     countdownTimer = null; recordingInterval = null; demoInterval = null;
     updateTimerStatus('Recording Complete');
 
-    const finalStatusMessage = isDemoMode ? 'Demo Mode Ended' : (isDeviceConnected ? 'Device Connected' : 'Disconnected');
-    const finalStatusType = isDemoMode ? 'demomode' : (isDeviceConnected ? 'connected' : 'disconnected');
+    // The read loop in connectAndRead will now exit, and its 'finally' block will release the reader's lock.
+    // We can now safely close the port.
+    if (port) {
+        try {
+            await port.close();
+        } catch (e) {
+            console.warn("Error closing port:", e);
+        }
+        port = null;
+    }
+
+    const finalStatusMessage = isDemoMode ? 'Demo Mode Ended' : 'Disconnected';
+    const finalStatusType = isDemoMode ? 'demomode' : 'disconnected';
     updateConnectionStatus(finalStatusMessage, finalStatusType);
-
-
-    if (reader && port && port.readable) {
-        try { if (!reader.closed) await reader.cancel(); } catch (e) { console.warn("Error cancelling reader:", e); }
+    if (!isDemoMode) {
+        isDeviceConnected = false;
     }
-    if (port && port.readable) {
-        setTimeout(async () => {
-            try { if (port?.readable) await port.close(); } catch (e) { console.warn("Error closing port:", e); }
-            port = null;
-            if (!isDemoMode) {
-                isDeviceConnected = false;
-                updateConnectionStatus('Disconnected', 'disconnected');
-            }
-        }, 200);
-    } else if (!isDemoMode && !isDeviceConnected) {
-         isDeviceConnected = false;
-         updateConnectionStatus('Disconnected', 'disconnected');
-    }
-
 
     if (recordedDataForReportInternal.length > 1) {
         const {avgBpm, minBpm, maxBpm} = calculateHeartRateStatsForReport(heartRateDataPointsInternal);
@@ -969,7 +971,6 @@ async function endRecordingSession() {
         updateTimerStatus('Recording Complete - Not enough data for report.');
         if(downloadPdfButton) downloadPdfButton.disabled = true;
         activeReportData = null; // No report generated
-        resetAndClearCharts();
     }
     isDemoMode = false;
 }

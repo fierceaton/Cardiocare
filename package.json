@@ -10,8 +10,6 @@
   },
   "dependencies": {
     "@google/genai": "^1.4.0",
-    "firebase/app": "latest",
-    "firebase/database": "latest",
     "firebase": "^11.8.1"
   },
   "devDependencies": {

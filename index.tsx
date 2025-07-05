@@ -136,9 +136,9 @@ let activeReportData: ReportData | null = null;
 
 
 // --- Constants (existing) ---
-const BAUD_RATE = 115200;
+const BAUD_RATE = 9600; // CORRECTED: Must match Arduino's Serial.begin() rate
 const RECORDING_DURATION_MS = 15000;
-const DATA_READ_INTERVAL_MS = 75;
+const DATA_READ_INTERVAL_MS = 75; // Used for demo mode interval
 const ECG_MM_PER_MV = 10;
 const ECG_MM_PER_SECOND = 25;
 const ECG_TOTAL_MV_SPAN = 3.0;
@@ -685,7 +685,7 @@ function drawHeartRateData(
     targetWaveformPolyline.setAttribute('points', pointsString);
 
     if (targetDotMarkersGroup) {
-        while (targetDotMarkersGroup.firstChild) targetDotMarkersGroup.firstChild.remove();
+        while (targetDotMarkersGroup.firstChild) targetDotMarkersGroup.firstChild.firstChild.remove();
         for (let t = 0; t <= RECORDING_DURATION_MS; t += HR_DOT_INTERVAL_MS) {
             let closestPoint = null; let minDiff = Infinity;
             for (const p of dataSource) {
@@ -790,9 +790,13 @@ async function connectAndRead() {
         return;
     }
 
+    let localPort: SerialPort | null = null;
+    let localReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+
     try {
-        port = await navigator.serial.requestPort();
-        await port.open({ baudRate: BAUD_RATE });
+        localPort = await navigator.serial.requestPort();
+        port = localPort; // Assign to global port for access in endRecordingSession
+        await localPort.open({ baudRate: BAUD_RATE });
         isDeviceConnected = true;
         updateConnectionStatus('Device Connected', 'connected');
         startRecordingSession();
@@ -801,20 +805,20 @@ async function connectAndRead() {
         let dataReceived = false;
         const dataReceptionTimeout = setTimeout(() => {
             if (!dataReceived && keepReading) {
-                updateConnectionStatus('No data from device. Check wiring.', 'error');
+                updateConnectionStatus('No data from device. Check wiring/baud.', 'error');
             }
         }, 3500);
 
-        if (!port.readable) throw new Error("Serial port is not readable.");
-        reader = port.readable.getReader();
+        if (!localPort.readable) throw new Error("Serial port is not readable.");
+        localReader = localPort.readable.getReader();
+        reader = localReader; // Assign to global reader
         const decoder = new TextDecoder();
         let lineBuffer = '';
 
-        while (port.readable && keepReading) {
-            const { value, done } = await reader.read();
+        while (true) { // Loop indefinitely, will be broken by reader.cancel()
+            const { value, done } = await localReader.read();
 
             if (done) {
-                keepReading = false;
                 break;
             }
             
@@ -837,16 +841,17 @@ async function connectAndRead() {
 
                 lines.forEach(line => {
                     const trimmedLine = line.trim();
-                    if (trimmedLine === 'LEADS_OFF') {
+                    if (trimmedLine === '!') { // CORRECTED: Check for '!' for LEADS_OFF
                         handleLeadsOffState();
                         sendDataToServer('LEADS_OFF');
                     } else if (trimmedLine) {
                         const numericValue = parseInt(trimmedLine, 10);
                         if (!isNaN(numericValue)) {
-                            processAndDrawLiveData(numericValue);
-                            if (recordedDataForReportInternal.length < (RECORDING_DURATION_MS / DATA_READ_INTERVAL_MS)) {
+                            // Only add data if we are still in recording state
+                            if(recordingInterval !== null || countdownTimer !== null) {
                                 recordedDataForReportInternal.push(numericValue);
                             }
+                            processAndDrawLiveData(numericValue);
                             sendDataToServer(numericValue);
                         }
                     }
@@ -854,23 +859,28 @@ async function connectAndRead() {
             }
         }
     } catch (error: any) {
-        if (error.name === 'AbortError') {
-             console.log("Stream reading cancelled as expected.");
+        // A cancellation by endRecordingSession will throw an error, which is expected.
+        if (error.name === 'AbortError' || (error.name === 'TypeError' && error.message.includes('cannot read properties of null'))) {
+             console.log("Stream reading cancelled or port closed as expected.");
         } else {
             console.error('Error with Web Serial:', error);
             updateConnectionStatus(`Error: ${(error as Error).message.split('.')[0]}`, 'error');
             resetAndClearCharts();
         }
     } finally {
-        if (reader) {
-            try { reader.releaseLock(); } catch (e) { /* Ignore release lock errors */ }
+        if (localReader) {
+            try { localReader.releaseLock(); } catch (e) { /* Ignore release lock errors */ }
         }
-        if (port) {
-            try { await port.close(); } catch (e) { /* Ignore close errors */ }
+        if (localPort && localPort.readable) {
+            try { await localPort.close(); } catch (e) { /* Ignore close errors */ }
         }
         port = null;
         reader = null;
         isDeviceConnected = false;
+        if(keepReading){ // If we exited abnormally
+             updateConnectionStatus('Disconnected', 'disconnected');
+        }
+        keepReading = false;
     }
 }
 
@@ -890,9 +900,7 @@ function startDemoMode() {
         }
 
         processAndDrawLiveData(rawValue);
-        if (recordedDataForReportInternal.length < (RECORDING_DURATION_MS / DATA_READ_INTERVAL_MS)) {
-           recordedDataForReportInternal.push(rawValue);
-        }
+        recordedDataForReportInternal.push(rawValue);
         sendDataToServer(rawValue);
         demoPatternIndex = (demoPatternIndex + 1) % simulatedBeatPattern.length;
     }, DATA_READ_INTERVAL_MS);
@@ -902,18 +910,19 @@ function startRecordingSession() {
     resetAndClearCharts();
     updateConnectionStatus(isDemoMode ? 'Demo Mode Active' : 'Recording...', isDemoMode ? 'demomode' : 'recording');
     updateTimerStatus(`Recording: ${RECORDING_DURATION_MS / 1000}s remaining`);
-    if(downloadPdfButton) downloadPdfButton.disabled = true; // Still manage disabled, visibility is per role
+    if(downloadPdfButton) downloadPdfButton.disabled = true;
     if(reportSection) reportSection.style.display = 'none';
-    activeReportData = null; // Clear any previously loaded/generated report
+    activeReportData = null;
 
     recordingStartTime = Date.now(); let timeLeft = RECORDING_DURATION_MS;
     countdownTimer = window.setInterval(() => {
         timeLeft -= 1000;
         if (timeLeft >= 0) {
-            if (connectionStatusSpan?.className === 'recording' || connectionStatusSpan?.className === 'demomode') {
+            const statusClass = connectionStatusSpan?.className || '';
+            if (statusClass === 'recording' || statusClass === 'demomode') {
                  updateTimerStatus(`Recording: ${timeLeft / 1000}s remaining`);
-            } else if (connectionStatusSpan?.className === 'error' && connectionStatusSpan?.textContent?.includes('Leads Off')) {
-                 updateTimerStatus(`Leads Off - Paused (${timeLeft / 1000}s)`);
+            } else if (statusClass === 'error') { // Generic error state
+                 updateTimerStatus(`Paused (${timeLeft / 1000}s)`);
             } else {
                  updateTimerStatus(`Recording: ${timeLeft / 1000}s remaining`);
             }
@@ -921,34 +930,42 @@ function startRecordingSession() {
              endRecordingSession();
         }
     }, 1000);
+
+    // This timeout is the definitive end of the recording period.
     recordingInterval = window.setTimeout(endRecordingSession, RECORDING_DURATION_MS);
 }
 
 async function endRecordingSession() {
+    // Prevent multiple executions
+    if (!countdownTimer && !recordingInterval && !demoInterval) {
+        return; 
+    }
+    
     if (countdownTimer) clearInterval(countdownTimer);
     if (recordingInterval) clearTimeout(recordingInterval);
     if (demoInterval) clearInterval(demoInterval);
     countdownTimer = null; recordingInterval = null; demoInterval = null;
 
-    if (keepReading === false && !isDemoMode) {
-        return; 
-    }
-    
+    const wasReading = keepReading;
     keepReading = false;
-
+    
     if (reader) {
         try {
-            await reader.cancel();
+            // Forcefully cancel any pending read operations.
+            // This is the most reliable way to stop the read loop.
+            await reader.cancel(); 
         } catch (error) {
-            console.warn("Error while cancelling reader:", error);
+            // The cancellation itself might throw an error, which we can ignore.
+            console.warn("Reader cancellation threw an error (this is often expected):", error);
         }
+        // The read loop's `finally` block will handle closing the port.
     }
     
     updateTimerStatus('Recording Complete');
-    const finalStatusMessage = isDemoMode ? 'Demo Mode Ended' : 'Disconnected';
+    const finalStatusMessage = isDemoMode ? 'Demo Mode Ended' : (wasReading ? 'Disconnected' : 'Session Ended');
     updateConnectionStatus(finalStatusMessage, isDemoMode ? 'demomode' : 'disconnected');
     
-    if (recordedDataForReportInternal.length > 1) {
+    if (recordedDataForReportInternal.length > 20) { // Require a minimum amount of data
         const {avgBpm, minBpm, maxBpm} = calculateHeartRateStatsForReport(heartRateDataPointsInternal);
         const reportTimestamp = Date.now();
         const currentReportId = generateReportId(patientNameInput.value, reportTimestamp);
@@ -1076,6 +1093,7 @@ function redrawReportSnapshotWaveform(data: number[]) {
     if (!reportEcgWaveformPolyline) {
         reportEcgWaveformPolyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
         reportEcgWaveformPolyline.setAttribute("id", "report-ecg-waveform-actual");
+        reportEcgWaveformPolyline.setAttribute("class", "report-ecg-waveform"); // Apply class for styling
         reportEcgSnapshotSVG.appendChild(reportEcgWaveformPolyline);
     }
     if (data.length === 0) { reportEcgWaveformPolyline.setAttribute('points', ''); return; }
@@ -1091,11 +1109,12 @@ function redrawReportSnapshotWaveform(data: number[]) {
         yPixel = Math.max(chartMargins.top, Math.min(chartMargins.top + plotAreaHeight, yPixel));
         pointsString = `${chartMargins.left.toFixed(2)},${yPixel.toFixed(2)} ${(chartMargins.left + Math.min(5, plotAreaWidth)).toFixed(2)},${yPixel.toFixed(2)}`;
     } else {
+        const step = plotAreaWidth / (data.length - 1);
         pointsString = data.map((rawValue, index) => {
             const mvValue = ((rawValue - MIN_RAW_Y_VALUE) / (MAX_RAW_Y_VALUE - MIN_RAW_Y_VALUE)) * ECG_TOTAL_MV_SPAN + ECG_MIN_MV;
             let yPixel = plotAreaHeight / 2 - (mvValue * ECG_MM_PER_MV * pixelsPerMmY) + chartMargins.top;
             yPixel = Math.max(chartMargins.top, Math.min(chartMargins.top + plotAreaHeight, yPixel));
-            const xPixel = chartMargins.left + (index / (data.length - 1)) * plotAreaWidth;
+            const xPixel = chartMargins.left + (index * step);
             return `${xPixel.toFixed(2)},${yPixel.toFixed(2)}`;
         }).join(' ');
     }
@@ -1504,6 +1523,6 @@ declare global {
     interface Navigator { serial: Serial; }
     interface SerialOptions { baudRate: number; dataBits?: 7 | 8; stopBits?: 1 | 2; parity?: "none" | "even" | "odd"; bufferSize?: number; flowControl?: "none" | "hardware"; }
     interface SerialPortRequestOptions { filters?: { usbVendorId?: number; usbProductId?: number; }[]; }
-    interface ReadableStreamDefaultReader<R = any> { closed: Promise<undefined>; }
+    interface ReadableStreamDefaultReader<R = any> { cancel(): Promise<void>; closed: Promise<undefined>; }
 }
 export {};

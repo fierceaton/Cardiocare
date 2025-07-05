@@ -804,7 +804,6 @@ async function connectAndRead() {
             }
         }, 3500);
 
-        // This replaces the old TextDecoderStream implementation for more robustness
         if (!port.readable) throw new Error("Serial port is not readable.");
         reader = port.readable.getReader();
         const decoder = new TextDecoder();
@@ -815,6 +814,10 @@ async function connectAndRead() {
 
             if (done) {
                 break; // Exit loop if stream is closed
+            }
+            
+            if (!keepReading) { // Add an explicit break if keepReading changes mid-loop
+                 break;
             }
 
             if (value) {
@@ -857,13 +860,27 @@ async function connectAndRead() {
         console.error('Error with Web Serial:', error);
         updateConnectionStatus(`Error: ${(error as Error).message.split('.')[0]}`, 'error');
         isDeviceConnected = false;
-        resetAndClearCharts(); // Reset on connection failure
+        resetAndClearCharts();
     } finally {
-        // When the loop finishes (e.g., keepReading is false), release the reader lock.
-        // This is critical so the port can be closed later in endRecordingSession.
+        // Centralized cleanup. This block runs regardless of how the try block exits.
+        // It ensures the reader is unlocked and the port is closed safely.
         if (reader) {
-            reader.releaseLock();
+            try {
+                reader.releaseLock();
+            } catch (e) {
+                // Ignore errors, the port might be closing or already closed.
+                console.warn("Error releasing reader lock:", e);
+            }
             reader = null;
+        }
+        if (port) {
+            try {
+                await port.close();
+            } catch (e) {
+                // Ignore errors, the port might have been closed already.
+                console.warn("Error closing port:", e);
+            }
+            port = null;
         }
     }
 }
@@ -919,23 +936,15 @@ function startRecordingSession() {
 }
 
 async function endRecordingSession() {
-    keepReading = false; // This signals the read loop in connectAndRead to stop.
+    keepReading = false; // Signal the read loop in connectAndRead to stop.
     if (countdownTimer) clearInterval(countdownTimer);
     if (recordingInterval) clearTimeout(recordingInterval);
     if (demoInterval) clearInterval(demoInterval);
     countdownTimer = null; recordingInterval = null; demoInterval = null;
     updateTimerStatus('Recording Complete');
 
-    // The read loop in connectAndRead will now exit, and its 'finally' block will release the reader's lock.
-    // We can now safely close the port.
-    if (port) {
-        try {
-            await port.close();
-        } catch (e) {
-            console.warn("Error closing port:", e);
-        }
-        port = null;
-    }
+    // The read loop in connectAndRead will now exit, and its 'finally' block will handle all cleanup,
+    // including releasing the lock and closing the port. This avoids race conditions.
 
     const finalStatusMessage = isDemoMode ? 'Demo Mode Ended' : 'Disconnected';
     const finalStatusType = isDemoMode ? 'demomode' : 'disconnected';

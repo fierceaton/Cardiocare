@@ -1,3 +1,4 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -813,20 +814,16 @@ async function connectAndRead() {
             const { value, done } = await reader.read();
 
             if (done) {
-                break; // Exit loop if stream is closed
+                keepReading = false;
+                break;
             }
             
-            if (!keepReading) { // Add an explicit break if keepReading changes mid-loop
-                 break;
-            }
-
-            if (value) {
+            if (value && value.length > 0) {
                 if (!dataReceived) {
                     dataReceived = true;
                     clearTimeout(dataReceptionTimeout);
                 }
                 
-                // If status was in an error state (Leads Off, No Data), update to Recording
                 if (connectionStatusSpan?.className.includes('error')) {
                     updateConnectionStatus('Recording...', 'recording');
                 }
@@ -836,7 +833,7 @@ async function connectAndRead() {
 
                 lineBuffer += decoder.decode(value, { stream: true });
                 const lines = lineBuffer.split('\n');
-                lineBuffer = lines.pop() || ''; // Keep partial line for next chunk
+                lineBuffer = lines.pop() || '';
 
                 lines.forEach(line => {
                     const trimmedLine = line.trim();
@@ -856,32 +853,24 @@ async function connectAndRead() {
                 });
             }
         }
-    } catch (error) {
-        console.error('Error with Web Serial:', error);
-        updateConnectionStatus(`Error: ${(error as Error).message.split('.')[0]}`, 'error');
-        isDeviceConnected = false;
-        resetAndClearCharts();
+    } catch (error: any) {
+        if (error.name === 'AbortError') {
+             console.log("Stream reading cancelled as expected.");
+        } else {
+            console.error('Error with Web Serial:', error);
+            updateConnectionStatus(`Error: ${(error as Error).message.split('.')[0]}`, 'error');
+            resetAndClearCharts();
+        }
     } finally {
-        // Centralized cleanup. This block runs regardless of how the try block exits.
-        // It ensures the reader is unlocked and the port is closed safely.
         if (reader) {
-            try {
-                reader.releaseLock();
-            } catch (e) {
-                // Ignore errors, the port might be closing or already closed.
-                console.warn("Error releasing reader lock:", e);
-            }
-            reader = null;
+            try { reader.releaseLock(); } catch (e) { /* Ignore release lock errors */ }
         }
         if (port) {
-            try {
-                await port.close();
-            } catch (e) {
-                // Ignore errors, the port might have been closed already.
-                console.warn("Error closing port:", e);
-            }
-            port = null;
+            try { await port.close(); } catch (e) { /* Ignore close errors */ }
         }
+        port = null;
+        reader = null;
+        isDeviceConnected = false;
     }
 }
 
@@ -936,23 +925,29 @@ function startRecordingSession() {
 }
 
 async function endRecordingSession() {
-    keepReading = false; // Signal the read loop in connectAndRead to stop.
     if (countdownTimer) clearInterval(countdownTimer);
     if (recordingInterval) clearTimeout(recordingInterval);
     if (demoInterval) clearInterval(demoInterval);
     countdownTimer = null; recordingInterval = null; demoInterval = null;
-    updateTimerStatus('Recording Complete');
 
-    // The read loop in connectAndRead will now exit, and its 'finally' block will handle all cleanup,
-    // including releasing the lock and closing the port. This avoids race conditions.
-
-    const finalStatusMessage = isDemoMode ? 'Demo Mode Ended' : 'Disconnected';
-    const finalStatusType = isDemoMode ? 'demomode' : 'disconnected';
-    updateConnectionStatus(finalStatusMessage, finalStatusType);
-    if (!isDemoMode) {
-        isDeviceConnected = false;
+    if (keepReading === false && !isDemoMode) {
+        return; 
     }
+    
+    keepReading = false;
 
+    if (reader) {
+        try {
+            await reader.cancel();
+        } catch (error) {
+            console.warn("Error while cancelling reader:", error);
+        }
+    }
+    
+    updateTimerStatus('Recording Complete');
+    const finalStatusMessage = isDemoMode ? 'Demo Mode Ended' : 'Disconnected';
+    updateConnectionStatus(finalStatusMessage, isDemoMode ? 'demomode' : 'disconnected');
+    
     if (recordedDataForReportInternal.length > 1) {
         const {avgBpm, minBpm, maxBpm} = calculateHeartRateStatsForReport(heartRateDataPointsInternal);
         const reportTimestamp = Date.now();
@@ -973,14 +968,15 @@ async function endRecordingSession() {
             avgBpm, minBpm, maxBpm
         };
         displayActiveReport();
-        if (initializeFirebase()) { // Ensure Firebase is up before saving
+        if (initializeFirebase()) {
             await saveReportToFirebase(activeReportData);
         }
     } else {
         updateTimerStatus('Recording Complete - Not enough data for report.');
         if(downloadPdfButton) downloadPdfButton.disabled = true;
-        activeReportData = null; // No report generated
+        activeReportData = null;
     }
+
     isDemoMode = false;
 }
 

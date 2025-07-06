@@ -142,16 +142,16 @@ const RECORDING_DURATION_MS = 15000;
 const DATA_READ_INTERVAL_MS = 75; // Used for demo mode interval
 const ECG_MM_PER_MV = 10;
 const ECG_MM_PER_SECOND = 25;
-const ECG_TOTAL_MV_SPAN = 3.0;
-const ECG_MIN_MV = -ECG_TOTAL_MV_SPAN / 2;
-const ECG_MAX_MV = ECG_TOTAL_MV_SPAN / 2;
+const ECG_TOTAL_MV_SPAN = 3.0; // This is actually in Volts (V), so 3.0V total span
+const ECG_MIN_MV = -ECG_TOTAL_MV_SPAN / 2; // -1.5V
+const ECG_MAX_MV = ECG_TOTAL_MV_SPAN / 2; // +1.5V
 const LIVE_ECG_TIME_WINDOW_SECONDS = 2.5;
 const MAX_DATA_POINTS_LIVE_ECG = Math.ceil((LIVE_ECG_TIME_WINDOW_SECONDS * 1000) / DATA_READ_INTERVAL_MS) + 1;
 const ECG_MINOR_GRID_COLOR = "#FFDDE0"; // Standard ECG: Light Pink for minor grid lines
 const ECG_MAJOR_GRID_COLOR = "#FFA0A0"; // Standard ECG: More prominent Pink/Red for major grid lines
 const MAX_RAW_Y_VALUE = 1023;
 const MIN_RAW_Y_VALUE = 0;
-const PEAK_DETECT_THRESHOLD_ECG = 680;
+const PEAK_DETECT_THRESHOLD_ECG = 600; // Lowered for more sensitivity
 const MIN_MS_BETWEEN_BEATS_FOR_DETECTION = 250;
 const MIN_BPM = 30;
 const MAX_BPM = 220;
@@ -529,7 +529,8 @@ function drawChartStaticElements(config: ChartConfig) {
                 const tickLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
                 tickLabel.setAttribute("class", "axis-tick-label-svg"); tickLabel.setAttribute("x", (chartMargins.left - 8).toString());
                 tickLabel.setAttribute("y", yPos.toString()); tickLabel.setAttribute("text-anchor", "end");
-                tickLabel.setAttribute("dominant-baseline", "middle"); tickLabel.textContent = mv.toFixed(1);
+                tickLabel.setAttribute("dominant-baseline", "middle");
+                tickLabel.textContent = mv.toFixed(1);
                 axisLabelsGroup.appendChild(tickLabel);
             }
         });
@@ -590,7 +591,11 @@ function processAndDrawLiveData(rawValue: number) {
     const plotAreaWidth = chartWidth - chartMargins.left - chartMargins.right;
     const plotAreaHeight = chartHeight - chartMargins.top - chartMargins.bottom;
     const totalMmY = ECG_TOTAL_MV_SPAN * ECG_MM_PER_MV; const pixelsPerMmY = plotAreaHeight / totalMmY;
-    const mvValue = ((rawValue - MIN_RAW_Y_VALUE) / (MAX_RAW_Y_VALUE - MIN_RAW_Y_VALUE)) * ECG_TOTAL_MV_SPAN + ECG_MIN_MV;
+
+    // This new mapping "zooms in" on the signal around the 512 baseline.
+    // It assumes the signal deviates by about +/- 350 from the baseline for a full-scale deflection.
+    const mvValue = ((rawValue - 512) / 350.0) * (ECG_TOTAL_MV_SPAN / 2);
+
     let yPixel = plotAreaHeight / 2 - (mvValue * ECG_MM_PER_MV * pixelsPerMmY);
     yPixel += chartMargins.top;
     yPixel = Math.max(chartMargins.top, Math.min(chartMargins.top + plotAreaHeight, yPixel));
@@ -1088,7 +1093,7 @@ function redrawReportSnapshotWaveform(data: number[]) {
     drawChartStaticElements({
         svg: reportEcgSnapshotSVG, axisLabelsGroup: reportAxisLabelsGroup, chartTitlesGroup: reportChartTitlesGroup,
         defsElement: reportEcgSnapshotDefs, gridRect: reportGridRect as SVGRectElement | null,
-        mainTitle: "ECG Snapshot (15s)", xLabel: `Time (s) - ${ECG_MM_PER_SECOND}mm/s`, yLabel: `Signal (mV) - ${ECG_MM_PER_MV}mm/mV`,
+        mainTitle: "ECG Snapshot (15s)", xLabel: `Time (s) - ${ECG_MM_PER_SECOND}mm/s`, yLabel: `Signal (V) - ${ECG_MM_PER_MV}mm/mV`,
         chartType: 'ecg-report', timeWindowSeconds: RECORDING_DURATION_MS / 1000
     });
 
@@ -1106,14 +1111,14 @@ function redrawReportSnapshotWaveform(data: number[]) {
     let pointsString = "";
     if (data.length === 1) {
         const rawValue = data[0];
-        const mvValue = ((rawValue - MIN_RAW_Y_VALUE) / (MAX_RAW_Y_VALUE - MIN_RAW_Y_VALUE)) * ECG_TOTAL_MV_SPAN + ECG_MIN_MV;
+        const mvValue = ((rawValue - 512) / 350.0) * (ECG_TOTAL_MV_SPAN / 2);
         let yPixel = plotAreaHeight / 2 - (mvValue * ECG_MM_PER_MV * pixelsPerMmY) + chartMargins.top;
         yPixel = Math.max(chartMargins.top, Math.min(chartMargins.top + plotAreaHeight, yPixel));
         pointsString = `${chartMargins.left.toFixed(2)},${yPixel.toFixed(2)} ${(chartMargins.left + Math.min(5, plotAreaWidth)).toFixed(2)},${yPixel.toFixed(2)}`;
     } else {
         const step = plotAreaWidth / (data.length - 1);
         pointsString = data.map((rawValue, index) => {
-            const mvValue = ((rawValue - MIN_RAW_Y_VALUE) / (MAX_RAW_Y_VALUE - MIN_RAW_Y_VALUE)) * ECG_TOTAL_MV_SPAN + ECG_MIN_MV;
+            const mvValue = ((rawValue - 512) / 350.0) * (ECG_TOTAL_MV_SPAN / 2);
             let yPixel = plotAreaHeight / 2 - (mvValue * ECG_MM_PER_MV * pixelsPerMmY) + chartMargins.top;
             yPixel = Math.max(chartMargins.top, Math.min(chartMargins.top + plotAreaHeight, yPixel));
             const xPixel = chartMargins.left + (index * step);
@@ -1250,7 +1255,7 @@ function initializeAllChartsStaticElements() {
         drawChartStaticElements({
             svg: ecgChartSVG, axisLabelsGroup: ecgAxisLabelsGroup, chartTitlesGroup: ecgChartTitlesGroup,
             defsElement: ecgChartDefs, gridRect: ecgGridRect, mainTitle: "Live ECG Signal",
-            xLabel: `Time (s) - ${ECG_MM_PER_SECOND}mm/s`, yLabel: `Signal (mV) - ${ECG_MM_PER_MV}mm/mV`,
+            xLabel: `Time (s) - ${ECG_MM_PER_SECOND}mm/s`, yLabel: `Signal (V) - ${ECG_MM_PER_MV}mm/mV`,
             chartType: 'ecg-live', timeWindowSeconds: LIVE_ECG_TIME_WINDOW_SECONDS
         });
     }

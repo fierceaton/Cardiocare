@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -103,7 +104,7 @@
                 <div class="chart-container-wrapper">
                     <section id="ecg-chart-container" aria-labelledby="ecgChartGlobalTitle">
                         <h3 id="ecgChartGlobalTitle" class="chart-section-title">Live ECG</h3>
-                        <svg id="ecg-chart" width="100%" height="300px" aria-label="Live ECG chart displaying real-time waveform on a standard grid. Vertical axis shows signal amplitude in millivolts (mV), horizontal axis shows a 2.5-second time window.">
+                        <svg id="ecg-chart" width="100%" height="300px" aria-label="Live ECG chart displaying real-time waveform on a standard grid. Vertical axis shows signal amplitude in Volts (V), horizontal axis shows a 2.5-second time window.">
                             <defs id="ecg-chart-defs">
                             </defs>
                             <rect id="ecg-grid-rect" x="0" y="0" width="100%" height="100%" fill="url(#ecg-live-grid-pattern)" />
@@ -156,7 +157,7 @@
 
                         <h3>ECG Waveform (15s Snapshot)</h3>
                         <div id="report-ecg-snapshot-container" class="chart-container-wrapper">
-                            <svg id="report-ecg-snapshot" width="100%" height="250px" aria-label="Snapshot of the recorded ECG waveform over 15 seconds on a standard grid. Vertical axis shows signal amplitude in millivolts (mV), horizontal axis shows time in seconds (0-15s). Average heart rate for the recording is displayed.">
+                            <svg id="report-ecg-snapshot" width="100%" height="250px" aria-label="Snapshot of the recorded ECG waveform over 15 seconds on a standard grid. Vertical axis shows signal amplitude in Volts (V), horizontal axis shows time in seconds (0-15s). Average heart rate for the recording is displayed.">
                                <defs id="report-ecg-snapshot-defs">
                                </defs>
                                <rect id="report-grid-rect" x="0" y="0" width="100%" height="100%" fill="url(#ecg-report-grid-pattern)" />

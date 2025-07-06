@@ -496,9 +496,10 @@ function drawChartStaticElements(config: ChartConfig) {
     if (chartWidth === 0 || chartHeight === 0) return;
     const plotAreaWidth = chartWidth - chartMargins.left - chartMargins.right;
     const plotAreaHeight = chartHeight - chartMargins.top - chartMargins.bottom;
-    while (axisLabelsGroup.firstChild) axisLabelsGroup.firstChild.remove();
-    while (chartTitlesGroup.firstChild) chartTitlesGroup.firstChild.remove();
-    if (gridLinesGroup) { while (gridLinesGroup.firstChild) gridLinesGroup.firstChild.remove(); }
+
+    axisLabelsGroup.innerHTML = '';
+    chartTitlesGroup.innerHTML = '';
+    if (gridLinesGroup) { gridLinesGroup.innerHTML = ''; }
 
     const titleText = document.createElementNS("http://www.w3.org/2000/svg", "text");
     titleText.setAttribute("x", (chartWidth / 2).toString()); titleText.setAttribute("y", (chartMargins.top / 2 + 5).toString());
@@ -671,7 +672,7 @@ function drawHeartRateData(
 
     if (dataSource.length === 0) {
         targetWaveformPolyline.setAttribute('points', '');
-        if (targetDotMarkersGroup) while (targetDotMarkersGroup.firstChild) targetDotMarkersGroup.firstChild.remove();
+        if (targetDotMarkersGroup) targetDotMarkersGroup.innerHTML = '';
         return;
     }
 
@@ -686,9 +687,7 @@ function drawHeartRateData(
     targetWaveformPolyline.setAttribute('points', pointsString);
 
     if (targetDotMarkersGroup) {
-        while (targetDotMarkersGroup.firstChild) {
-            targetDotMarkersGroup.firstChild.remove();
-        }
+        targetDotMarkersGroup.innerHTML = '';
         for (let t = 0; t <= RECORDING_DURATION_MS; t += HR_DOT_INTERVAL_MS) {
             let closestPoint = null; let minDiff = Infinity;
             for (const p of dataSource) {
@@ -722,9 +721,9 @@ function resetAndClearCharts(clearPatientInfoRelated: boolean = false) {
 
     if (ecgWaveformPolyline) ecgWaveformPolyline.setAttribute('points', '');
     if (hrWaveformPolyline) hrWaveformPolyline.setAttribute('points', '');
-    if (hrDotMarkersLiveGroup) while (hrDotMarkersLiveGroup.firstChild) hrDotMarkersLiveGroup.firstChild.remove();
+    if (hrDotMarkersLiveGroup) hrDotMarkersLiveGroup.innerHTML = '';
     if (reportHrWaveformPolyline) reportHrWaveformPolyline.setAttribute('points', '');
-    if (reportHrDotMarkersGroup) while (reportHrDotMarkersGroup.firstChild) reportHrDotMarkersGroup.firstChild.remove();
+    if (reportHrDotMarkersGroup) reportHrDotMarkersGroup.innerHTML = '';
 
     if (chartPlaceholderText) {
         chartPlaceholderText.style.display = 'block';
@@ -777,7 +776,7 @@ function handleLeadsOffState() {
         hrChartPlaceholderText.textContent = 'Leads Off - No BPM';
         hrChartPlaceholderText.style.display = 'block';
         hrWaveformPolyline.setAttribute('points', '');
-        if (hrDotMarkersLiveGroup) while (hrDotMarkersLiveGroup.firstChild) hrDotMarkersLiveGroup.firstChild.remove();
+        if (hrDotMarkersLiveGroup) hrDotMarkersLiveGroup.innerHTML = '';
         hrValueSpan.textContent = 'N/A';
     }
 }

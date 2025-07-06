@@ -1,4 +1,5 @@
 
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -685,7 +686,9 @@ function drawHeartRateData(
     targetWaveformPolyline.setAttribute('points', pointsString);
 
     if (targetDotMarkersGroup) {
-        while (targetDotMarkersGroup.firstChild) targetDotMarkersGroup.firstChild.firstChild.remove();
+        while (targetDotMarkersGroup.firstChild) {
+            targetDotMarkersGroup.firstChild.remove();
+        }
         for (let t = 0; t <= RECORDING_DURATION_MS; t += HR_DOT_INTERVAL_MS) {
             let closestPoint = null; let minDiff = Infinity;
             for (const p of dataSource) {
